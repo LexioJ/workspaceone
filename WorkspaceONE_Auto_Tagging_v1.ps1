@@ -2,13 +2,11 @@
 .SYNOPSIS
   Workspace ONE Auto Tagging runs centrally, reads device informations via WS1 API and automatically create missing/required tags.
 .DESCRIPTION
-  This script tries to cover the missing capability of Workspace ONE UEM to create Smart/Assignment Groups based on 
-  Hardware Vendor or Chassis Type. These Smart Groups are then used to deploy Vendor-specific tools (like Dell Command Suite) 
-  or Device type-specific Software (eg. VPN Software to all Laptops).
-  I created and used this script already for different projects to solve this limitation. 
-  Please run it first with $allow_tagging = $false to check if everything working fine, 
-  then you can set $allow_tagging = $true to actually start Auto-Tagging. 
-  If everything works fine, create a Scheduled Task to run the script, for example, every 5 minutes.
+  This script tries to cover the missing capability of Workspace ONE UEM to create Smart/Assignment Groups based on Hardware Vendor or Chassis Type. 
+  These Smart Groups are then used to deploy Vendor-specific tools (like Dell Command Suite) or Device type-specific Software (eg. VPN Software to all Laptops).
+  I created and already used this script for different projects to solve this limitation. Please run it first with $allow_tagging = $false to check if everything 
+  is working fine, then you can set $allow_tagging = $true to actually start Auto-Tagging. Create a Scheduled Task to run the script, for example, every 5 minutes 
+  if you want to have permanent Auto-Tagging.
 .PARAMETER <Parameter_Name>
     No parameters yet
 .INPUTS
