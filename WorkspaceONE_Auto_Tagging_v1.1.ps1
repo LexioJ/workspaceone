@@ -14,10 +14,10 @@
 .OUTPUTS
   Console output only, maybe create a log file in an upcoming version
 .NOTES
-  Version:        1.0
+  Version:        1.1
   Author:         Alexander Askin
-  Creation Date:  10. June 2019
-  Purpose/Change: Initial script development
+  Creation Date:  24. September 2019
+  Purpose/Change: Added Auto-Creation of Tags, Added Model Tagging
   
 .EXAMPLE
   WorkspaceONE_Auto_Tagging_v1.ps1
@@ -35,9 +35,16 @@ Write-Host "by Alexander Askin               /___//___/       /___/          "
 Write-Host ""
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
-# Read/Write Switch - set to $true if you want this scripte to add tags to your devices, 
+# Read/Write Switch - set to $true if you want this script to add tags to your devices, 
 # if set to $false the script will only show what it would do, but would not make any changes.
 $allow_tagging = $false
+
+# Allow Model Tags Switch - set to $true if you want this script to add tags based on Model, 
+# this is useful to build smart groups directly adressing specific Models (eg. BIOS, Driver Updates).
+$allow_model_tag = $false
+
+# Allow Missing Tags to be Automatically Created Switch - set to $true if you want this script to add missing tags automatically. 
+$allow_missing_tag_auto_creation = $false
 
 # Workspace ONE Access variables
 $WorkspaceONEServer = "" # https://cnxxx.awmdm.com
@@ -60,20 +67,25 @@ $vendors.Add("Latitude*", "Dell")
 $vendors.Add("Optiplex*", "Dell")
 $vendors.Add("Precision*", "Dell")
 $vendors.Add("Proliant*", "HP")
-$vendors.Add("HP EliteBook*", "HP")
-$vendors.Add("HP ZBook*", "HP")
+$vendors.Add("HP Z*", "HP")
 $vendors.Add("HP Elite*", "HP")
-$vendors.Add("VMware*", "Virtual")
+$vendors.Add("Surface Pro*", "Microsoft")
 
 # Define Chassis and their relations to HW-Types
 $devicetypes = @{}
 $devicetypes.Add("Optiplex*", "Desktop")
 $devicetypes.Add("Precision T*", "Desktop")
+$devicetypes.Add("Precision 7*", "Laptop")
 $devicetypes.Add("VMware*", "Desktop")
+$devicetypes.Add("Virtual Machine", "Desktop")
 $devicetypes.Add("Proliant*", "Laptop")
 $devicetypes.Add("Precision M*", "Laptop")
+$devicetypes.Add("Latitude*", "Laptop")
+$devicetypes.Add("HP Z4*", "Desktop")
 $devicetypes.Add("HP EliteBook*", "Laptop")
+$devicetypes.Add("HP EliteDesk*", "Desktop")
 $devicetypes.Add("HP Elite X*", "2-in-1")
+$devicetypes.Add("Surface Pro 4*", "2-in-1")
  
 # Contruct REST HEADER
 $header = @{
@@ -119,14 +131,20 @@ Function Get-DeviceByID($WorkSpaceONEDeviceID) {
 }
  
 Function Get-TagIDByName($WorkSpaceONETagName) {
-    Write-Host("Getting specific TagID by Name """ + $WorkSpaceONETagName + """") -NoNewline -ForegroundColor Cyan
+    Write-Host("Getting TagID by Name """ + $WorkSpaceONETagName + """") -NoNewline -ForegroundColor Cyan
     $endpointURL = $URL + "/mdm/tags/search/?name=" + $WorkSpaceONETagName + "&organizationgroupid=" + $WorkSpaceONEGroupID
     $webReturn = Invoke-RestMethod -Method Get -Uri $endpointURL -Headers $header
     if($webReturn.Tags.Count -ge 1){
-        Write-Host(" - found: " + $webReturn.Tags.Item(0).Id.Value)
-        return $webReturn.Tags.Item(0)
+        Write-Host(" - found: " + $webReturn.Tags.Item(0).Id.Value + " (" + $webReturn.Tags.Item(0).TagName + ")")
+        return $webReturn.Tags.Item(0).Id.Value
     }else{
-        Write-Host(" - not found -> please create this TAG manually in Workspace ONE Console") -ForegroundColor Yellow
+        if($allow_missing_tag_auto_creation){
+            $return = (Create-Tag -WorkSpaceONETagName $WorkSpaceONETagName).Value
+            Write-Host(" - created: " + $return) -ForegroundColor Green
+            return $return
+        }else{
+            Write-Host(" - not found -> please create this TAG manually in Workspace ONE Console") -ForegroundColor Yellow
+        }
     }
 }
  
@@ -140,6 +158,20 @@ Function Check-TagAlreadyOnDevice($WorkSpaceONETagID, $WorkSpaceONEDeviceID) {
         }
     })
     return $false
+}
+
+Function Create-Tag($WorkSpaceONETagName) {
+    $endpointURL = $URL + "/mdm/tags/addtag"
+    $body = @()
+    $body = [pscustomobject]@{
+        'TagName' = $WorkSpaceONETagName;
+        'TagAvatar' = $WorkSpaceONETagName;
+        'TagType' = 1;
+        'LocationGroupId' = $global:WorkSpaceONEGroupID;
+    }
+    $json = $body | ConvertTo-Json
+    $webReturn = Invoke-RestMethod -Method Post -Uri $endpointURL -Headers $header -Body $json
+    return $webReturn
 }
  
 Function Add-TagToDevice($WorkSpaceONETagID, $WorkSpaceONEDeviceID) {
@@ -174,31 +206,53 @@ $WorkSpaceONEDeviceID = ""
 $WorkSpaceONETagID = @{}
 foreach($tag in $vendors.Values){
     if($WorkSpaceONETagID.ContainsKey($tag) -eq $false){
-        $WorkSpaceONETagID.Add($tag, (Get-TagIDByName($tag)).Id.Value)
+        $WorkSpaceONETagID.Add($tag, (Get-TagIDByName($tag)))
     }
 }
 foreach($tag in $devicetypes.Values){
     if($WorkSpaceONETagID.ContainsKey($tag) -eq $false){
-        $WorkSpaceONETagID.Add($tag, (Get-TagIDByName($tag)).Id.Value)
+        $WorkSpaceONETagID.Add($tag, (Get-TagIDByName($tag)))
     }
+}
+if($allow_model_tag){
+    (Get-Devices).Devices.ForEach({
+        $device = $_;
+        if(!$WorkSpaceONETagID[$device.Model] -and $device.Platform -eq "WinRT"){
+            $WorkSpaceONETagID[$device.Model] = (Get-TagIDByName $device.Model)
+        }
+    })
 }
 
 Write-Host "-------------- Start processing ... ------------------"
 (Get-Devices).Devices.ForEach({
     $device = $_;
     $device_was_found = $false
+    $WorkSpaceONEDeviceID = $device.Id.Value
     Write-Host($device.DeviceFriendlyName + "(ID:" + $device.Id.Value + ") is " + $device.Model) -NoNewline -ForegroundColor Yellow
+    
+    # Model Tagging - ONLY for WinRT devices
+    if($allow_model_tag -and $WorkSpaceONETagID[$device.Model] -and $device.Platform -eq "WinRT"){
+        If(Check-TagAlreadyOnDevice $WorkSpaceONETagID[$device.Model] $WorkSpaceONEDeviceID){
+            Write-Host(" already tagged as """ + $device.Model + """ - SKIPPED, ") -ForegroundColor Green -NoNewline
+        }else{
+            Write-Host(" untagged Model - attempt to TAG it, ") -ForegroundColor Cyan -NoNewline
+            Add-TagToDevice $WorkSpaceONETagID[$device.Model] $WorkSpaceONEDeviceID
+        }
+    }
     # Vendor Check
     if($vendors){
         foreach($vendor in $vendors.Keys){
             if ($device.Model -like $vendor){
                 $device_was_found = $true
-                $WorkSpaceONEDeviceID = $device.Id.Value
-                If(Check-TagAlreadyOnDevice $WorkSpaceONETagID[$vendors[$vendor]] $WorkSpaceONEDeviceID){
-                    Write-Host(" already tagged as " + $vendors[$vendor] + " - SKIPPED, ") -ForegroundColor Green -NoNewline
+                if($WorkSpaceONETagID[$vendors[$vendor]]){
+                    If(Check-TagAlreadyOnDevice $WorkSpaceONETagID[$vendors[$vendor]] $WorkSpaceONEDeviceID){
+                        Write-Host(" already tagged as " + $vendors[$vendor] + " - SKIPPED, ") -ForegroundColor Green -NoNewline
+                    }else{
+                        Write-Host(" untagged """ + $vendors[$vendor] + """ - attempt to TAG it, ") -ForegroundColor Cyan -NoNewline
+                        Add-TagToDevice $WorkSpaceONETagID[$vendors[$vendor]] $WorkSpaceONEDeviceID
+                    }
                 }else{
-                    Write-Host(" untagged """ + $vendors[$vendor] + """ - attempt to TAG it, ") -ForegroundColor Cyan -NoNewline
-                    Add-TagToDevice $WorkSpaceONETagID[$vendors[$vendor]] $WorkSpaceONEDeviceID
+                    Write-Host("- TAG does not exist") -ForegroundColor Red
                 }
             }
         }
@@ -213,12 +267,15 @@ Write-Host "-------------- Start processing ... ------------------"
         foreach($devicetype in $devicetypes.Keys){
             if ($device.Model -like $devicetype){
                 $device_was_found = $true
-                $WorkSpaceONEDeviceID = $device.Id.Value
-                If(Check-TagAlreadyOnDevice $WorkSpaceONETagID[$devicetypes[$devicetype]] $WorkSpaceONEDeviceID){
-                    Write-Host(" already tagged as " + $devicetypes[$devicetype] + " - SKIPPED") -ForegroundColor Green
+                if($WorkSpaceONETagID[$devicetypes[$devicetype]]){
+                    If(Check-TagAlreadyOnDevice $WorkSpaceONETagID[$devicetypes[$devicetype]] $WorkSpaceONEDeviceID){
+                        Write-Host(" already tagged as " + $devicetypes[$devicetype] + " - SKIPPED") -ForegroundColor Green
+                    }else{
+                        Write-Host(" untagged """ + $devicetypes[$devicetype] + """ - attempt to TAG it") -ForegroundColor Cyan
+                        Add-TagToDevice $WorkSpaceONETagID[$devicetypes[$devicetype]] $WorkSpaceONEDeviceID
+                    }
                 }else{
-                    Write-Host(" untagged """ + $devicetypes[$devicetype] + """ - attempt to TAG it") -ForegroundColor Cyan
-                    Add-TagToDevice $WorkSpaceONETagID[$devicetypes[$devicetype]] $WorkSpaceONEDeviceID
+                    Write-Host("- TAG does not exist") -ForegroundColor Red
                 }
             }
         }
