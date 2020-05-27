@@ -219,11 +219,11 @@ Get-ChildItem HKLM:\SOFTWARE\AirWatchMDM\AppDeploymentAgent\AppManifests | ForEa
                 if($part -eq "AND" -or $part -eq "OR"){ #Take Logical Operator
                     $prev_operator = $part
                     if(!$ras){Write-Host $part" " -ForegroundColor Yellow -NoNewline}
-                }elseif($part -eq "True"){ #When this is True asume that overall the condition is true
+                }elseif($part -eq "True"){
                     if(!$ras){Write-Host $part" " -ForegroundColor DarkCyan -NoNewline}
                     if($prev_operator -eq "AND" -and $prev_result -eq "False"){ 
                         $finalresult = $false
-                        break #attemp to break, which does not work
+                        break
                     }else{
                         $finalresult = $true
                     }
