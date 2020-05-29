@@ -7,7 +7,7 @@
   properties. It resolve all properties to either True or False (eg. Registry Key match Value X) and concludes by re-building the condition chain.
   (eg. Property1 AND Property2 OR Propery3). If this is done the script then checks the IsInstalled value HKLM:\SOFTWARE\AirWatchMDM\AppDeploymentAgent\S-1-5-18\$($AppId)
   and updates the value to the detected state. There is a $run_as_sensor variable which basically suppress all outputs except on at the end in order
-  to run this script as Workspace ONE Sensor on Trigger or Schedule.
+  to run this script as Workspace ONE Sensor one Trigger or Schedule.
 .PARAMETER <Parameter_Name>
     No parameters yet
 .INPUTS
