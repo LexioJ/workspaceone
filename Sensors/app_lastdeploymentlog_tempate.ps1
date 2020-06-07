@@ -21,7 +21,7 @@ function Check-Registry ($Key, $SubKey, $ValueName, $ValueType, $Win64="true")  
             $result = "$ValueName for Application not found"
         }
     }else{
-        $result = "Application not found: HKLM:\SOFTWARE\AirWatchMDM\AppDeploymentAgent\S-1-5-18\$($AppId.ToUpper())"
+        $result = "Application not found: $($Key)$($AppId.ToUpper())"
     }
     return $result
 }
