@@ -26,7 +26,6 @@
   WorkspaceONE_Update_OnDemand_App.ps1
 #>
 
-
 Write-Host "  _      __         __                            ____  _  ______  __  ________  ___       "
 Write-Host " | | /| / /__  ____/ /__ ___ ___  ___ ________   / __ \/ |/ / __/ / / / / __/  |/  /       "
 Write-Host " | |/ |/ / _ \/ __/  '_/(_-</ _ \/ _ '/ __/ -_) / /_/ /    / _/  / /_/ / _// /|_/ /        "
@@ -53,7 +52,6 @@ $cred = [Convert]::ToBase64String($encoding)
 # Optional overwrite credential above by specify username:password and convert to base64 by using https://www.base64encode.org/
 # $cred = "" #uncomment this line if you like to use base64 encoded string
 
- 
 # Contruct REST HEADER
 $header = @{
 "Authorization"  = "Basic $cred";
@@ -135,7 +133,6 @@ Function Install-ApplicationByDeviceID ($WorkSpaceONEApplicationID, $WorkSpaceON
     return $webReturn
 }
  
-
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
 Write-Host ""
@@ -152,11 +149,9 @@ if(Check-ConsoleVersion){
     $AllDevices = (Get-Devices).Devices
     # Filter the current list
     $DeviceList = @()
-    Write-Host $DeviceIDsApplicationCurrentlyInstalled
     foreach ($Device in $AllDevices){
         if($DeviceIDsApplicationCurrentlyInstalled.Contains($Device.Id.Value)){
-            Write-Host $Device.Id.Value
-             $DeviceList += $Device
+            $DeviceList += $Device
         }
     }
     # Select one or more devices
@@ -170,8 +165,8 @@ if(Check-ConsoleVersion){
     # And Action
     if($Confirmation -eq "6"){
         foreach ($Device in $SelectedDevices){
-          Write-Host "Initiate Install-ApplicationByDeviceID $($SelectedTargetApplication.Id.Value) $($Device.Value)" -ForegroundColor Yellow
-          Install-ApplicationByDeviceID $SelectedTargetApplication.Id.Value $Device.Value
+            Write-Host "Initiate Install-ApplicationByDeviceID $($SelectedTargetApplication.Id.Value) $($Device.Value)" -ForegroundColor Yellow
+            Install-ApplicationByDeviceID $SelectedTargetApplication.Id.Value $Device.Value
         }
     } else{
         Write-Host "Aborted."
