@@ -155,7 +155,7 @@ if(Check-ConsoleVersion){
         }
     }
     # Select one or more devices
-    $SelectedDevices = $DeviceList | Select-Object -Property DeviceFriendlyName,SerialNumber,Model,LastSeen,Id | Out-GridView -Title "Select one or more devices you like to push install $($SelectedTargetApplication.ApplicationName) $($SelectedTargetApplication.AppVersion), use CRT+A to select them all" -PassThru | Select-Object -ExpandProperty Id
+    $SelectedDevices = $DeviceList | Select-Object -Property DeviceFriendlyName,SerialNumber,Model,LastSeen,Id | Out-GridView -Title "Select one or more devices you like to push install $($SelectedTargetApplication.ApplicationName) $($SelectedTargetApplication.AppVersion), use CTR+A to select them all" -PassThru | Select-Object -ExpandProperty Id
 
     # Ask for confirmation
     Write-Host  -ForegroundColor Yellow -NoNewline
