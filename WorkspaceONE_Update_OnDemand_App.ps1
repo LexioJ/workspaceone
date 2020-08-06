@@ -141,7 +141,7 @@ if(Check-ConsoleVersion){
     # Get all available Win32 Apps which are Active
     $AllApplications = (Get-Applications).Application
     # Select Source and Target Version
-    $SelectedSourceApplication = $AllApplications | Select-Object -Property ApplicationName,AppVersion,AssignmentStatus,AssignedDeviceCount,InstalledDeviceCount,NotInstalledDeviceCount,SmartGroups,BundleId,Id  | Out-GridView -Title "Select the Current Application which needs to be updated; InstalledDeviceCount is not always accurade" -OutputMode Single
+    $SelectedSourceApplication = $AllApplications | Select-Object -Property ApplicationName,AppVersion,AssignmentStatus,AssignedDeviceCount,InstalledDeviceCount,NotInstalledDeviceCount,SmartGroups,BundleId,Id  | Out-GridView -Title "Select the Current Application which needs to be updated; InstalledDeviceCount is not always accurate" -OutputMode Single
     $SelectedTargetApplication = $AllApplications | Select-Object -Property ApplicationName,AppVersion,AssignmentStatus,AssignedDeviceCount,InstalledDeviceCount,NotInstalledDeviceCount,SmartGroups,BundleId,Id | Where-Object BundleId -eq $SelectedSourceApplication.BundleId |Sort-Object -Property AppVersion -Descending  | Out-GridView -Title "Select the Target Application you like to update to" -OutputMode Single
     # Get all devices having the old version installed
     $DeviceIDsApplicationCurrentlyInstalled = (Get-DeviceIDsByInstalledApplicationID $SelectedSourceApplication.Id.Value $SelectedSourceApplication.ApplicationName).DeviceId
