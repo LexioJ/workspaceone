@@ -17,10 +17,11 @@
 .OUTPUTS
   Console output only, maybe create a log file in an upcoming version
 .NOTES
-  Version:        1.0
+  Version:        1.1
   Author:         Alexander Askin
-  Creation Date:  06. August 2020
-  Purpose/Change: Initial Development
+  Creation Date:  21. August 2020
+  Purpose/Change: v1.0 2020-08-06 - Initial Development
+                  v1.1 2020-08-21 - Fixed a typo in Install-ApplicationByDeviceID and Remove-ApplicationByDeviceID
   
 .EXAMPLE
   WorkspaceONE_Update_OnDemand_App.ps1
@@ -111,7 +112,7 @@ Function Get-DeviceIDsByInstalledApplicationID($WorkSpaceONEApplicationID, $Work
 
 # Invoke uninstallation of an application on a spefic device; not used in this script - kept it as reference
 Function Remove-ApplicationByDeviceID ($WorkSpaceONEApplicationID, $WorkSpaceONEDeviceID){
-    $endpointURL = $URL + "apps/internal/" + $WorkSpaceONEApplicationID + "/uninstall"
+    $endpointURL = $URL + "/mam/apps/internal/" + $WorkSpaceONEApplicationID + "/uninstall"
     $body = @()
     $body = [pscustomobject]@{
         'DeviceID: ' = $WorkSpaceONEDeviceID;
@@ -123,7 +124,7 @@ Function Remove-ApplicationByDeviceID ($WorkSpaceONEApplicationID, $WorkSpaceONE
 
 # Invoke installation of an application on a spefic device
 Function Install-ApplicationByDeviceID ($WorkSpaceONEApplicationID, $WorkSpaceONEDeviceID){
-    $endpointURL = $URL + "apps/internal/" + $WorkSpaceONEApplicationID + "/install"
+    $endpointURL = $URL + "/mam/apps/internal/" + $WorkSpaceONEApplicationID + "/install"
     $body = @()
     $body = [pscustomobject]@{
         'DeviceId: ' = $WorkSpaceONEDeviceID;
@@ -168,7 +169,9 @@ if(Check-ConsoleVersion){
             Write-Host "Initiate Install-ApplicationByDeviceID $($SelectedTargetApplication.Id.Value) $($Device.Value)" -ForegroundColor Yellow
             Install-ApplicationByDeviceID $SelectedTargetApplication.Id.Value $Device.Value
         }
-    } else{
+    }else{
         Write-Host "Aborted."
     }
+}else{
+  Write-Host "Unable to connect to Workspace ONE UEM Console"
 }
