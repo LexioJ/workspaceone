@@ -17,11 +17,13 @@
 .OUTPUTS
   Console output only, maybe create a log file in an upcoming version
 .NOTES
-  Version:        1.1
+  Version:        1.2
   Author:         Alexander Askin
   Creation Date:  21. August 2020
   Purpose/Change: v1.0 2020-08-06 - Initial Development
                   v1.1 2020-08-21 - Fixed a typo in Install-ApplicationByDeviceID and Remove-ApplicationByDeviceID
+                  v1.2 2020-08-23 - Switched on Get-DeviceIDsByInstalledApplicationID to the "GET /apps/{uuid}/devices" endpoint 
+                                    as "GET /apps/internal/{applicationid}/devices" did not work consistently as expected. Added user-cancel handling.
   
 .EXAMPLE
   WorkspaceONE_Update_OnDemand_App.ps1
@@ -102,11 +104,11 @@ Function Get-Applications {
 }
 
 # Return all devices which have a specific application version installed
-Function Get-DeviceIDsByInstalledApplicationID($WorkSpaceONEApplicationID, $WorkSpaceONEApplicationName) {
+Function Get-DeviceIDsByInstalledApplicationID($WorkSpaceONEApplicationUUID, $WorkSpaceONEApplicationName) {
     Write-Host("Getting all Devices having " + $WorkSpaceONEApplicationName + " installed") -NoNewline -ForegroundColor Cyan
-    $endpointURL = $URL + "/mam/apps/internal/" + $WorkSpaceONEApplicationID + "/devices?status=installed&pagesize=5000"
+    $endpointURL = $URL + "/mam/apps/" + $WorkSpaceONEApplicationUUID + "/devices?isinstalled=true"
     $webReturn = Invoke-RestMethod -Method Get -Uri $endpointURL -Headers $header
-    Write-Host(" - found: " + $webReturn.Total)
+    Write-Host(" - found: " + $webReturn.TotalResults)
     return $webReturn
 }
 
@@ -142,24 +144,33 @@ if(Check-ConsoleVersion){
     # Get all available Win32 Apps which are Active
     $AllApplications = (Get-Applications).Application
     # Select Source and Target Version
-    $SelectedSourceApplication = $AllApplications | Select-Object -Property ApplicationName,AppVersion,AssignmentStatus,AssignedDeviceCount,InstalledDeviceCount,NotInstalledDeviceCount,SmartGroups,BundleId,Id  | Out-GridView -Title "Select the Current Application which needs to be updated; InstalledDeviceCount is not always accurate" -OutputMode Single
-    $SelectedTargetApplication = $AllApplications | Select-Object -Property ApplicationName,AppVersion,AssignmentStatus,AssignedDeviceCount,InstalledDeviceCount,NotInstalledDeviceCount,SmartGroups,BundleId,Id | Where-Object BundleId -eq $SelectedSourceApplication.BundleId |Sort-Object -Property AppVersion -Descending  | Out-GridView -Title "Select the Target Application you like to update to" -OutputMode Single
+    $SelectedSourceApplication = $AllApplications | Select-Object -Property ApplicationName,AppVersion,AssignmentStatus,AssignedDeviceCount,InstalledDeviceCount,NotInstalledDeviceCount,SmartGroups,BundleId,Id,Uuid | Out-GridView -Title "Select the Current Application which needs to be updated; InstalledDeviceCount is not always accurate" -OutputMode Single
+    if(!$SelectedSourceApplication){Write-Host "No source application selected. Aborted." -ForegroundColor Red; exit}
+    $SelectedTargetApplication = $AllApplications | Select-Object -Property ApplicationName,AppVersion,AssignmentStatus,AssignedDeviceCount,InstalledDeviceCount,NotInstalledDeviceCount,SmartGroups,BundleId,Id,Uuid | Where-Object BundleId -eq $SelectedSourceApplication.BundleId |Sort-Object -Property AppVersion -Descending  | Out-GridView -Title "Select the Target Application you like to update to" -OutputMode Single
+    if(!$SelectedTargetApplication){Write-Host "No target application selected. Aborted." -ForegroundColor Red; exit}
     # Get all devices having the old version installed
-    $DeviceIDsApplicationCurrentlyInstalled = (Get-DeviceIDsByInstalledApplicationID $SelectedSourceApplication.Id.Value $SelectedSourceApplication.ApplicationName).DeviceId
+    $DeviceIDsApplicationCurrentlyInstalled = (Get-DeviceIDsByInstalledApplicationID $SelectedSourceApplication.Uuid $SelectedSourceApplication.ApplicationName).devices
     # Get all devices to have DeviceFriendlyName,SerialNumber,Model,LastSeen available
     $AllDevices = (Get-Devices).Devices
     # Filter the current list
     $DeviceList = @()
     foreach ($Device in $AllDevices){
-        if($DeviceIDsApplicationCurrentlyInstalled.Contains($Device.Id.Value)){
+        if($DeviceIDsApplicationCurrentlyInstalled.device_id.Contains($Device.Id.Value)){
             $DeviceList += $Device
         }
     }
+    
     # Select one or more devices
     $SelectedDevices = $DeviceList | Select-Object -Property DeviceFriendlyName,SerialNumber,Model,LastSeen,Id | Out-GridView -Title "Select one or more devices you like to push install $($SelectedTargetApplication.ApplicationName) $($SelectedTargetApplication.AppVersion), use CTR+A to select them all" -PassThru | Select-Object -ExpandProperty Id
-
+        if($SelectedDevices.Count){
+        $NumberOfSelectedDevices = $SelectedDevices.Count
+    }elseif($SelectedDevices){
+        $NumberOfSelectedDevices = 1
+    }else{
+        Write-Host "No device(s) selected. Aborted." -ForegroundColor Red; exit
+    }
+    
     # Ask for confirmation
-    Write-Host  -ForegroundColor Yellow -NoNewline
     $wscriptShell = New-Object -ComObject Wscript.Shell 
     $Confirmation = $wscriptShell.PopUp("Are you sure you want to update $($SelectedDevices.Count) device(s)`nfrom $($SelectedSourceApplication.ApplicationName) $($SelectedSourceApplication.AppVersion) to $($SelectedTargetApplication.ApplicationName) $($SelectedTargetApplication.AppVersion)", 0,"Final Confirmation",4 + 32)
 
@@ -169,9 +180,10 @@ if(Check-ConsoleVersion){
             Write-Host "Initiate Install-ApplicationByDeviceID $($SelectedTargetApplication.Id.Value) $($Device.Value)" -ForegroundColor Yellow
             Install-ApplicationByDeviceID $SelectedTargetApplication.Id.Value $Device.Value
         }
+        Write-Host "All done." -ForegroundColor Green
     }else{
-        Write-Host "Aborted."
+        Write-Host "Aborted." -ForegroundColor Red
     }
 }else{
-  Write-Host "Unable to connect to Workspace ONE UEM Console"
+  Write-Host "Unable to connect to Workspace ONE UEM Console" -ForegroundColor Red
 }
