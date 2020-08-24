@@ -117,7 +117,7 @@ Function Remove-ApplicationByDeviceID ($WorkSpaceONEApplicationID, $WorkSpaceONE
     $endpointURL = $URL + "/mam/apps/internal/" + $WorkSpaceONEApplicationID + "/uninstall"
     $body = @()
     $body = [pscustomobject]@{
-        'DeviceID: ' = $WorkSpaceONEDeviceID;
+        'DeviceID' = $WorkSpaceONEDeviceID;
     }
     $json = $body | ConvertTo-Json
     $webReturn = Invoke-RestMethod -Method Post -Uri $endpointURL -Headers $header -Body $json
@@ -129,7 +129,7 @@ Function Install-ApplicationByDeviceID ($WorkSpaceONEApplicationID, $WorkSpaceON
     $endpointURL = $URL + "/mam/apps/internal/" + $WorkSpaceONEApplicationID + "/install"
     $body = @()
     $body = [pscustomobject]@{
-        'DeviceId: ' = $WorkSpaceONEDeviceID;
+        'DeviceId' = $WorkSpaceONEDeviceID;
     }
     $json = $body | ConvertTo-Json
     $webReturn = Invoke-RestMethod -Method Post -Uri $endpointURL -Headers $header -Body $json
